@@ -125,14 +125,19 @@ only needed for testing.
 ```sh
 cd dashboard
 npm ci                # install (pinned lockfile)
-npm run dev           # Vite dev server on :8080, /api proxied to :8000 (make api-up)
+npm run dev           # Vite dev server on :8080, public Platform data through /api
 npm test              # vitest (jsdom, recorded fixtures — no network)
 npm run check         # tsc + oxlint + prettier --check
 npm run build         # production bundle -> dist/
+npm run preview       # built dashboard on :4173, with the same API proxy
 ```
 
-Override the dev proxy target without touching CORS:
-`DITTO_DASHBOARD_PROXY_TARGET=https://platform-api-dev.heyditto.ai npm run dev`.
+The local dev and build-preview servers proxy same-origin `/api` requests to
+`https://platform-api.heyditto.ai` by default, so the dashboard shows live public
+data without a local Platform stack or browser CORS setup. To use a different
+API, set `DITTO_DASHBOARD_PROXY_TARGET` when starting either server, for example
+`DITTO_DASHBOARD_PROXY_TARGET=http://localhost:8000 npm run dev` after
+`make api-up`, or use `https://platform-api-dev.heyditto.ai` for dev data.
 
 If the API can't be reached the page renders an explicit unavailable state. It
 never substitutes sample values for live subnet data.
