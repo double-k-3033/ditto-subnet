@@ -1521,14 +1521,117 @@ tbody tr.champion .rank {
   font: 400 14px/1 var(--sans);
 }
 
-/* Phone top bar: the footer links lost their icons above, so their labels
-   come back here or the links would be invisible. */
+/* Keep the compact shell spacing after the calm layer's desktop overrides. */
 @media (max-width: 960px) {
+  .sidebar {
+    gap: 8px 16px;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--hair);
+    background: var(--bg);
+  }
+  .sidebar .brand {
+    flex: 0 0 auto;
+  }
+  .sidebar > .epoch-clock {
+    flex: 0 0 auto;
+  }
+  .sidebar > .epoch-clock .epoch-clock-pin {
+    display: none;
+  }
+  .nav {
+    gap: 8px;
+    margin: 0;
+    padding-bottom: 2px;
+    overscroll-behavior-inline: contain;
+  }
+  .sidebar .nav-item {
+    min-height: 40px;
+    padding: 8px 10px;
+  }
+  .side-theme,
+  .sidebar .side-theme {
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+  .wrap {
+    padding: 24px 24px 72px;
+  }
+  header.top {
+    margin-bottom: 24px;
+  }
   #wandb-link .btn-label,
   #github-link .btn-label {
     display: inline;
   }
   .side-foot {
     gap: 4px 12px;
+  }
+}
+
+@media (max-width: 720px) {
+  .sidebar {
+    gap: 8px;
+    padding: 10px 16px;
+  }
+  .sidebar .brand {
+    --wordmark-width: 84px;
+    margin-right: auto;
+  }
+  .sidebar .brand .sub {
+    display: none;
+  }
+  .side-foot {
+    order: 0;
+    gap: 2px;
+  }
+  .side-foot .btn {
+    width: 36px;
+    height: 36px;
+    min-height: 36px;
+    padding: 8px;
+    display: inline-grid;
+    place-items: center;
+  }
+  .side-foot .btn .ic {
+    display: block;
+    width: 16px;
+    height: 16px;
+  }
+  #wandb-link .btn-label,
+  #github-link .btn-label {
+    display: none;
+  }
+  .side-foot #refresh {
+    font-size: 0;
+  }
+  .side-theme .theme-option,
+  .palette-option {
+    width: 34px;
+    height: 36px;
+    min-height: 36px;
+  }
+  .palette-option {
+    padding: 7px;
+  }
+  .side-theme,
+  .sidebar .side-theme {
+    gap: 8px;
+  }
+  .side-theme .theme-switch {
+    flex: 0 0 auto;
+  }
+  .palette-switch {
+    gap: 2px;
+  }
+  .wrap {
+    padding: 20px 16px 56px;
+  }
+  .overview-masthead {
+    gap: 24px;
+    padding-bottom: 24px;
+  }
+  .overview-split {
+    gap: 24px;
+    margin-top: 24px;
   }
 }

@@ -274,7 +274,13 @@ export function Sidebar(props: SidebarProps): JSX.Element {
           </svg>
           <span class="btn-label"> GitHub</span>
         </a>
-        <button id="refresh" class="btn" title="Refresh now" onClick={() => props.onRefresh()}>
+        <button
+          id="refresh"
+          class="btn"
+          title="Refresh now"
+          aria-label="Refresh now"
+          onClick={() => props.onRefresh()}
+        >
           <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
             <path d="M21 3v5h-5" />
