@@ -47,8 +47,9 @@ from ditto.api_models.system_health import (
     SystemMetrics,
     system_metrics_signing_token,
 )
-from ditto.api_models.ticket_status import TicketStatus
+from ditto.api_models.ticket_status import TicketPurpose, TicketStatus
 from ditto.api_server.datapipeline import DataPipelineError, NullGenerator
+from ditto.api_server.deferred_source_review import INTEGRITY_DOUBLE_CHECK_REASON
 from ditto.api_server.dependencies import (
     get_chain_client,
     get_dataset_generator,
@@ -6368,10 +6369,7 @@ class TestClaim:
                     agent_id=agent_id,
                     status="pending",
                     opened_at=opened_at,
-                    original_reason=(
-                        "Top-five rank qualified this submission for an "
-                        "integrity double-check"
-                    ),
+                    original_reason=INTEGRITY_DOUBLE_CHECK_REASON,
                     original_policy_version=SCREENING_POLICY_VERSION,
                     original_evidence={
                         "previous_status": AgentStatus.SCORED.value,
@@ -7290,6 +7288,73 @@ class TestQuarantineAdmin:
             str(historical),
             str(current),
         }
+
+    async def test_validator_assignment_list_reports_exact_lease_seed(
+        self,
+        app: FastAPI,
+        client: httpx.AsyncClient,
+        session_maker: async_sessionmaker[AsyncSession],
+    ) -> None:
+        """Two continual leases on one agent prove their shared seed exactly.
+
+        The seed is above 2**53, so a JSON number would round it and two
+        different seeds could compare equal. A lease with no seed yet reads
+        null rather than a fabricated value.
+        """
+        app.state.config = replace(
+            app.state.config,
+            admin_api_token="test-admin-token-at-least-32-characters",
+        )
+        retested = await _seed_agent(
+            session_maker, status=AgentStatus.SCORED, name="continual-lease"
+        )
+        unseeded = await _seed_agent(
+            session_maker, status=AgentStatus.EVALUATING, name="unseeded-lease"
+        )
+        shared_seed = 9_007_199_254_740_993
+        now = datetime.now(UTC)
+        async with session_maker() as session, session.begin():
+            session.add_all(
+                [
+                    ValidatorTicket(
+                        agent_id=retested,
+                        validator_hotkey=hotkey,
+                        slot_id="slot-1",
+                        status=TicketStatus.ISSUED,
+                        purpose=TicketPurpose.CONTINUAL_RETEST,
+                        issued_at=now,
+                        deadline=now + timedelta(minutes=45),
+                        bench_version=_TARGET_VERSION,
+                        seed=shared_seed,
+                        attempt_count=1,
+                    )
+                    for hotkey in ("5ContinualLeaseA", "5ContinualLeaseB")
+                ]
+                + [
+                    ValidatorTicket(
+                        agent_id=unseeded,
+                        validator_hotkey="5UnseededLease",
+                        status=TicketStatus.ISSUED,
+                        issued_at=now,
+                        deadline=now + timedelta(minutes=50),
+                        bench_version=_TARGET_VERSION,
+                        attempt_count=1,
+                    )
+                ]
+            )
+        _install_db(app, session_maker)
+
+        listing = await client.get(
+            "/api/v1/admin/validator-assignments",
+            headers={"Authorization": "Bearer test-admin-token-at-least-32-characters"},
+        )
+
+        assert listing.status_code == 200, listing.text
+        by_hotkey = {item["validator_hotkey"]: item for item in listing.json()["items"]}
+        for hotkey in ("5ContinualLeaseA", "5ContinualLeaseB"):
+            assert by_hotkey[hotkey]["purpose"] == "continual_retest"
+            assert by_hotkey[hotkey]["seed"] == "9007199254740993"
+        assert by_hotkey["5UnseededLease"]["seed"] is None
 
     @pytest.mark.parametrize(
         ("resolution", "expected_status"),
@@ -8555,6 +8620,39 @@ class TestQuarantineAdmin:
         assert "private_failure_log_tail" not in ordinary.json()["attempts"][0]
         assert wrong_owner.status_code == 404
         assert missing_actor.status_code == 422
+
+        inconclusive_audit = ScreenReviewAudit(
+            stage="l2",
+            reason_code="l2-model-inconclusive",
+            prompt_revision="l2-v13",
+            max_steps=256,
+            steps_used=7,
+            model_disposition="inconclusive",
+            resolution_basis="insufficient_static_evidence",
+            dossier_complete=False,
+            model_categories=["benchmark_emulation"],
+            model_inconclusive_invariants=["i5_production_engine"],
+            model_evidence_count=1,
+            model_causal_role_count=2,
+        )
+        async with session_maker() as session, session.begin():
+            quarantine = await session.scalar(
+                select(ScreeningQuarantine).where(
+                    ScreeningQuarantine.attempt_id == attempt_id
+                )
+            )
+            assert quarantine is not None
+            quarantine.review_audit = inconclusive_audit.model_dump(mode="json")
+            quarantine.review_audit_digest = inconclusive_audit.canonical_digest()
+        updated = await client.get(
+            f"/api/v1/admin/screening-submissions/{agent_id}/attempts/"
+            f"{attempt_id}/failure-diagnostic",
+            headers=headers,
+        )
+        assert updated.status_code == 200
+        assert updated.json()["l2_review_diagnostic"] == inconclusive_audit.model_dump(
+            mode="json"
+        )
 
     async def test_lists_text_free_l4_outcomes_with_honest_missing_success_trace(
         self,
