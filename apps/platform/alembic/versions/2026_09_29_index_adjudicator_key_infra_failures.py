@@ -1,7 +1,7 @@
 """cover node court-key failures in the infra-failure index
 
 Revision ID: 6a7a2a03a65f
-Revises: 5e2a8c4f9d17
+Revises: 111add4c7a2a
 Create Date: 2026-09-29
 
 ``INFRA_AUTO_RETRY_REASON_CODES`` now also retries a worker's
@@ -52,7 +52,7 @@ from alembic import op
 from ditto.db.migration_lock import MAX_ATTEMPTS, backoff_delay, is_retryable, sqlstate
 
 revision: str = "6a7a2a03a65f"
-down_revision: str | Sequence[str] | None = "5e2a8c4f9d17"
+down_revision: str | Sequence[str] | None = "111add4c7a2a"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
